@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RIVO - TikTok Clone</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        body { background-color: #000; color: #fff; overflow: hidden; height: 100vh; }
+
+        /* Screens Manager */
+        .screen { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; background: #000; flex-direction: column; }
+        .screen.active { display: flex; }
+
+        /* 1. Feed Screen */
+        .feed { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+        .feed::-webkit-scrollbar { display: none; }
+        .post { height: 100vh; scroll-snap-align: start; position: relative; background: #111; display: flex; align-items: center; justify-content: center; }
+        .post-video { width: 100%; height: 100%; object-fit: cover; background: #1a1a1a; display: flex; justify-content: center; align-items: center; font-size: 4rem; color: #333; }
+        
+        .top-feed-bar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-between; padding: 0 15px; z-index: 10; font-weight: bold; font-size: 1.1rem; }
+        .top-feed-bar .tabs { display: flex; gap: 15px; }
+        .top-feed-bar .tabs span.active { border-bottom: 2px solid #fff; padding-bottom: 2px; }
+
+        .post-overlay { position: absolute; bottom: 80px; right: 15px; left: 80px; z-index: 10; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+        .username-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+        .badge-founder { background: linear-gradient(45deg, #ff0050, #00f2fe); color: #fff; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .verified-check { color: #20d5ec; font-size: 0.9rem; }
+
+        .actions-sidebar { position: absolute; bottom: 100px; left: 15px; display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10; }
+        .action-btn { background: none; border: none; color: #fff; font-size: 1.8rem; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+        .action-btn span { font-size: 0.75rem; }
+
+        /* Bottom Nav */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; border-top: 0.5px solid #222; display: flex; justify-content: space-around; align-items: center; z-index: 100; }
+        .nav-item { color: #888; background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 1.2rem; cursor: pointer; }
+        .nav-item.active { color: #fff; }
+        .nav-item span { font-size: 0.65rem; }
+        .add-btn { background: linear-gradient(90deg, #00f2fe, #ff0050); padding: 2px; border-radius: 8px; }
+        .add-btn-inner { background: #fff; color: #000; padding: 3px 12px; border-radius: 6px; font-weight: bold; }
+
+        /* 2. Profile Screen (Exact TikTok Style) */
+        .profile-header { display: flex; justify-content: space-between; padding: 15px; font-size: 1.2rem; }
+        .profile-info { display: flex; flex-direction: column; align-items: center; padding: 10px 0; }
+        .profile-avatar { width: 90px; height: 90px; border-radius: 50%; background: #222; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; position: relative; margin-bottom: 10px; border: 1px solid #333; }
+        .profile-avatar .add-story { position: absolute; bottom: 0; right: 0; background: #00f2fe; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; border: 2px solid #000; }
+
+        .stats-row { display: flex; gap: 25px; margin: 15px 0; text-align: center; }
+        .stat-num { font-weight: bold; font-size: 1.1rem; }
+        .stat-label { font-size: 0.75rem; color: #888; }
+
+        .profile-actions { display: flex; gap: 8px; margin-bottom: 15px; }
+        .btn-profile { background: #1f1f1f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+
+        /* 3. Side Drawer / Settings (From Images) */
+        .drawer { position: fixed; top: 0; right: -100%; width: 80%; height: 100%; background: #fff; color: #000; z-index: 200; transition: 0.3s; padding: 20px 15px; overflow-y: auto; }
+        .drawer.open { right: 0; }
+        .drawer-section { margin-bottom: 20px; }
+        .drawer-title { font-size: 0.75rem; color: #888; margin-bottom: 10px; }
+        .drawer-item { display: flex; align-items: center; gap: 15px; padding: 12px 0; font-size: 0.95rem; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+
+        /* 4. Switch Accounts Modal (From Image 1000076087) */
+        .modal-bottom { position: fixed; bottom: -100%; left: 0; width: 100%; background: #fff; color: #000; border-radius: 16px 16px 0 0; z-index: 300; transition: 0.3s; padding: 20px; }
+        .modal-bottom.open { bottom: 0; }
+        .account-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .account-user { display: flex; align-items: center; gap: 12px; font-weight: bold; }
+
+        /* Search Screen (From Image 1000076075) */
+        .search-bar-container { display: flex; align-items: center; padding: 10px 15px; gap: 10px; border-bottom: 1px solid #222; }
+        .search-input-box { flex: 1; background: #1f1f1f; display: flex; align-items: center; padding: 8px 12px; border-radius: 6px; gap: 8px; }
+        .search-input-box input { background: none; border: none; color: #fff; outline: none; width: 100%; }
+
+        /* Overlay Backdrop */
+        .backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 150; display: none; }
+        .backdrop.open { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="backdrop" id="backdrop" onclick="closeAllModals()"></div>
+
+<!-- SCREEN 1: FEED (HOME) -->
+<div class="screen active" id="screen-feed">
+    <div class="top-feed-bar">
+        <i class="fa-solid fa-tv" onclick="switchScreen('screen-live')"></i>
+        <div class="tabs">
+            <span>المجتمع</span>
+            <span>أتابعه</span>
+            <span class="active">لك</span>
+        </div>
+        <i class="fa-solid fa-magnifying-glass" onclick="switchScreen('screen-search')"></i>
+    </div>
+
+    <div class="feed">
+        <div class="post">
+            <div class="post-video"><i class="fa-solid fa-play"></i></div>
+            <div class="post-overlay">
+                <div class="username-row">
+                    <span class="username" id="feed-user-display">FARS</span>
+                    <span class="badge-founder" id="feed-founder-tag">المؤسس</span>
+                    <i class="fa-solid fa-circle-check verified-check" id="feed-verify-tag"></i>
+                </div>
+                <div class="caption">مرحباً بكم في واجهة RIVO المطابقة تماماً لتيك توك! 🔥</div>
+            </div>
+            <div class="actions-sidebar">
+                <button class="action-btn" onclick="toggleLike(this)"><i class="fa-solid fa-heart"></i><span>16.4 ألف</span></button>
+                <button class="action-btn"><i class="fa-solid fa-comment-dots"></i><span>85</span></button>
+                <button class="action-btn"><i class="fa-solid fa-bookmark"></i><span>1175</span></button>
+                <button class="action-btn"><i class="fa-solid fa-share"></i><span>322</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCREEN 2: PROFILE (MATCHING IMAGE 1000076069) -->
+<div class="screen" id="screen-profile" style="background: #000;">
+    <div class="profile-header">
+        <i class="fa-solid fa-bars" onclick="openDrawer()"></i>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <i class="fa-solid fa-user-plus"></i>
+            <span id="profile-handle">@e_ee936</span>
+        </div>
+        <i class="fa-solid fa-pen" onclick="changeUsernamePrompt()"></i>
+    </div>
+
+    <div class="profile-info">
+        <div class="profile-avatar">
+            <i class="fa-solid fa-user"></i>
+            <div class="add-story"><i class="fa-solid fa-plus"></i></div>
+        </div>
+        <div class="username-row">
+            <h3 id="profile-name-display">FARS</h3>
+            <span class="badge-founder" id="profile-founder-tag">المؤسس</span>
+            <i class="fa-solid fa-circle-check verified-check" id="profile-verify-tag"></i>
+        </div>
+
+        <div class="stats-row">
+            <div><div class="stat-num">33</div><div class="stat-label">أتابعه</div></div>
+            <div><div class="stat-num">31</div><div class="stat-label">متابعين</div></div>
+            <div><div class="stat-num">55</div><div class="stat-label">تسجيلات الإعجاب</div></div>
+        </div>
+
+        <div class="profile-actions">
+            <button class="btn-profile" onclick="changeUsernamePrompt()">تعديل الملف الشخصي</button>
+            <button class="btn-profile" id="req-verify-btn" onclick="requestVerification()">طلب توثيق</button>
+        </div>
+    </div>
+
+    <!-- Admin Panel inside Profile for Founder -->
+    <div id="founder-admin-box" style="display:none; padding: 15px; background: #111; margin: 10px 15px; border-radius: 8px;">
+        <h4 style="color: #20d5ec; font-size: 0.85rem; margin-bottom: 8px;">طلبات التوثيق (خاص بالمؤسس FARS)</h4>
+        <div id="pending-list-box" style="font-size: 0.8rem; color: #aaa;">لا توجد طلبات معلقة</div>
+    </div>
+</div>
+
+<!-- SCREEN 3: SEARCH (MATCHING IMAGE 1000076075) -->
+<div class="screen" id="screen-search">
+    <div class="search-bar-container">
+        <i class="fa-solid fa-arrow-right" onclick="switchScreen('screen-feed')"></i>
+        <div class="search-input-box">
+            <i class="fa-solid fa-magnifying-glass" style="color: #666;"></i>
+            <input type="text" placeholder="Demetrious Johnson vs Arman...">
+        </div>
+        <span style="color: #ff0050; font-weight: bold;">بحث</span>
+    </div>
+    <div style="padding: 15px;">
+        <p style="color: #888; font-size: 0.85rem; margin-bottom: 10px;">قد يعجبك</p>
+        <div style="padding: 10px 0; border-bottom: 0.5px solid #222;">demetrious johnson vs arman tsarukyan</div>
+        <div style="padding: 10px 0; border-bottom: 0.5px solid #222;">كيف اعمل خدعه بالكارطه</div>
+    </div>
+</div>
+
+<!-- SCREEN 4: LIVE DISCOVERY (MATCHING IMAGE 1000076073) -->
+<div class="screen" id="screen-live">
+    <div style="display: flex; justify-content: space-between; padding: 15px; border-bottom: 0.5px solid #222;">
+        <i class="fa-solid fa-xmark" onclick="switchScreen('screen-feed')"></i>
+        <span style="font-weight: bold;">اكتشاف البث</span>
+        <i class="fa-regular fa-calendar"></i>
+    </div>
+    <div style="display: flex; gap: 15px; padding: 15px; overflow-x: auto;">
+        <div style="text-align: center;"><div style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid #ff0050; background: #222; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-video"></i></div><span style="font-size: 0.7rem;">بدء البث</span></div>
+        <div style="text-align: center;"><div style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid #ff0050; background: #333;"></div><span style="font-size: 0.7rem;">Nazi</span></div>
+    </div>
+</div>
+
+<!-- SIDE DRAWER MENU (MATCHING IMAGES 1000076077 & 1000076079) -->
+<div class="drawer" id="side-drawer">
+    <div class="drawer-section">
+        <div class="drawer-title">الأصول</div>
+        <div class="drawer-item"><i class="fa-solid fa-wallet"></i><span>رصيد</span></div>
+    </div>
+    <div class="drawer-section">
+        <div class="drawer-title">الأدوات الشخصية</div>
+        <div class="drawer-item"><i class="fa-regular fa-clock"></i><span>مركز الأنشطة</span></div>
+        <div class="drawer-item"><i class="fa-solid fa-qrcode"></i><span>رمز QR لديك</span></div>
+    </div>
+    <div class="drawer-section">
+        <div class="drawer-title">تسجيل الدخول</div>
+        <div class="drawer-item" onclick="openSwitchModal()"><i class="fa-solid fa-users-gear"></i><span>تبديل الحساب</span></div>
+        <div class="drawer-item" onclick="logout()"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>تسجيل الخروج</span></div>
+    </div>
+</div>
+
+<!-- SWITCH ACCOUNT MODAL (MATCHING IMAGE 1000076087) -->
+<div class="modal-bottom" id="switch-modal">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <i class="fa-solid fa-xmark" onclick="closeAllModals()"></i>
+        <h4 style="font-size: 1rem;">تبديل الحساب</h4>
+        <div></div>
+    </div>
+    <div class="account-item">
+        <div class="account-user">
+            <div style="width: 35px; height: 35px; border-radius: 50%; background: #000; color: #fff; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-user"></i></div>
+            <span id="modal-current-user">e_ee936</span>
+        </div>
+        <i class="fa-solid fa-check" style="color: #ff0050;"></i>
+    </div>
+    <div class="account-item" onclick="loginAsNewPrompt()" style="cursor: pointer; justify-content: flex-start; gap: 12px; color: #555;">
+        <div style="width: 35px; height: 35px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-plus"></i></div>
+        <span>إضافة حساب</span>
+    </div>
+</div>
+
+<!-- BOTTOM NAV BAR -->
+<div class="bottom-nav">
+    <button class="nav-item active" onclick="switchScreen('screen-feed')"><i class="fa-solid fa-house"></i><span>الصفحة الرئيسية</span></button>
+    <button class="nav-item" onclick="switchScreen('screen-live')"><i class="fa-solid fa-user-group"></i><span>الأصدقاء</span></button>
+    <div class="add-btn"><div class="add-btn-inner"><i class="fa-solid fa-plus"></i></div></div>
+    <button class="nav-item" onclick="switchScreen('screen-search')"><i class="fa-solid fa-message"></i><span>صندوق الوارد</span></button>
+    <button class="nav-item" onclick="switchScreen('screen-profile')"><i class="fa-solid fa-user"></i><span>الملف الشخصي</span></button>
+</div>
+
+<script>
+    let currentUser = localStorage.getItem('rivo_app_user') || 'FARS';
+    let requests = JSON.parse(localStorage.getItem('rivo_app_reqs')) || [];
+
+    window.onload = function() {
+        initUser(currentUser);
+    };
+
+    function initUser(username) {
+        currentUser = username;
+        localStorage.setItem('rivo_app_user', currentUser);
+        
+        let uData = JSON.parse(localStorage.getItem(`u_${currentUser}`));
+        if (!uData) {
+            const isFounder = (currentUser.toUpperCase() === 'FARS');
+            uData = { name: currentUser, isFounder: isFounder, isVerified: isFounder };
+            localStorage.setItem(`u_${currentUser}`, JSON.stringify(uData));
+        }
+        updateUI();
+    }
+
+    function updateUI() {
+        const uData = JSON.parse(localStorage.getItem(`u_${currentUser}`));
+
+        document.getElementById('profile-handle').innerText = '@' + uData.name;
+        document.getElementById('profile-name-display').innerText = uData.name;
+        document.getElementById('feed-user-display').innerText = uData.name;
+        document.getElementById('modal-current-user').innerText = uData.name;
+
+        // Display Badges
+        const founderShow = uData.isFounder ? 'inline-block' : 'none';
+        const verifyShow = uData.isVerified ? 'inline-block' : 'none';
+
+        document.getElementById('profile-founder-tag').style.display = founderShow;
+        document.getElementById('profile-verify-tag').style.display = verifyShow;
+        document.getElementById('feed-founder-tag').style.display = founderShow;
+        document.getElementById('feed-verify-tag').style.display = verifyShow;
+
+        // Admin & Verify Request logic
+        if (uData.isFounder) {
+            document.getElementById('founder-admin-box').style.display = 'block';
+            document.getElementById('req-verify-btn').style.display = 'none';
+            renderAdminRequests();
+        } else {
+            document.getElementById('founder-admin-box').style.display = 'none';
+            document.getElementById('req-verify-btn').style.display = uData.isVerified ? 'none' : 'inline-block';
+        }
+    }
+
+    function switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        closeAllModals();
+    }
+
+    function openDrawer() {
+        document.getElementById('side-drawer').classList.add('open');
+        document.getElementById('backdrop').classList.add('open');
+    }
+
+    function openSwitchModal() {
+        document.getElementById('side-drawer').classList.remove('open');
+        document.getElementById('switch-modal').classList.add('open');
+        document.getElementById('backdrop').classList.add('open');
+    }
+
+    function closeAllModals() {
+        document.getElementById('side-drawer').classList.remove('open');
+        document.getElementById('switch-modal').classList.remove('open');
+        document.getElementById('backdrop').classList.remove('open');
+    }
+
+    function changeUsernamePrompt() {
+        const name = prompt("أدخل اسمك الجديد:", currentUser);
+        if (name && name.trim()) {
+            initUser(name.trim());
+        }
+    }
+
+    function loginAsNewPrompt() {
+        const name = prompt("أدخل اسم المستخدم للحساب الجديد:");
+        if (name && name.trim()) {
+            initUser(name.trim());
+            closeAllModals();
+        }
+    }
+
+    function requestVerification() {
+        if (!requests.includes(currentUser)) {
+            requests.push(currentUser);
+            localStorage.setItem('rivo_app_reqs', JSON.stringify(requests));
+            alert("تم إرسال طلب التوثيق إلى المؤسس FARS!");
+        } else {
+            alert("طلبك بانتظار موافقة المؤسس FARS");
+        }
+    }
+
+    function renderAdminRequests() {
+        const box = document.getElementById('pending-list-box');
+        if (requests.length === 0) {
+            box.innerHTML = 'لا توجد طلبات معلقة حالياً';
+            return;
+        }
+        box.innerHTML = '';
+        requests.forEach(u => {
+            box.innerHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                    <span>${u}</span>
+                    <button onclick="approveVerify('${u}')" style="background:#00f2fe; border:none; padding:3px 8px; border-radius:4px; font-weight:bold; cursor:pointer;">توثيق</button>
+                </div>
+            `;
+        });
+    }
+
+    function approveVerify(user) {
+        let uData = JSON.parse(localStorage.getItem(`u_${user}`)) || { name: user, isFounder: false, isVerified: false };
+        uData.isVerified = true;
+        localStorage.setItem(`u_${user}`, JSON.stringify(uData));
+
+        requests = requests.filter(r => r !== user);
+        localStorage.setItem('rivo_app_reqs', JSON.stringify(requests));
+
+        alert(`تم توثيق ${user} بنجاح!`);
+        updateUI();
+    }
+
+    function logout() {
+        localStorage.removeItem('rivo_app_user');
+        initUser('FARS');
+        closeAllModals();
+    }
+
+    function toggleLike(btn) {
+        const icon = btn.querySelector('i');
+        icon.style.color = (icon.style.color === 'rgb(255, 0, 80)') ? '#fff' : '#ff0050';
+    }
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RIVO - TikTok Clone</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        body { background-color: #000; color: #fff; overflow: hidden; height: 100vh; }
+
+        .screen { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; background: #000; flex-direction: column; z-index: 1; }
+        .screen.active { display: flex; }
+
+        /* 1. Feed Screen */
+        .feed { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+        .feed::-webkit-scrollbar { display: none; }
+        .post { height: 100vh; scroll-snap-align: start; position: relative; background: #111; display: flex; align-items: center; justify-content: center; }
+        .post-video { width: 100%; height: 100%; object-fit: cover; background: #1a1a1a; display: flex; justify-content: center; align-items: center; font-size: 4rem; color: #333; }
+        
+        .top-feed-bar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-between; padding: 0 15px; z-index: 10; font-weight: bold; font-size: 1.1rem; }
+        .top-feed-bar .tabs { display: flex; gap: 15px; }
+        .top-feed-bar .tabs span.active { border-bottom: 2px solid #fff; padding-bottom: 2px; }
+
+        .post-overlay { position: absolute; bottom: 80px; right: 15px; left: 80px; z-index: 10; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+        .username-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+        .badge-founder { background: linear-gradient(45deg, #ff0050, #00f2fe); color: #fff; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .verified-check { color: #20d5ec; font-size: 0.9rem; }
+
+        .actions-sidebar { position: absolute; bottom: 100px; left: 15px; display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10; }
+        .action-btn { background: none; border: none; color: #fff; font-size: 1.8rem; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+        .action-btn span { font-size: 0.75rem; }
+
+        /* Bottom Nav Bar */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; border-top: 0.5px solid #222; display: flex; justify-content: space-around; align-items: center; z-index: 100; }
+        .nav-item { color: #888; background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 1.2rem; cursor: pointer; }
+        .nav-item.active { color: #fff; }
+        .nav-item span { font-size: 0.65rem; }
+        .add-btn { background: linear-gradient(90deg, #00f2fe, #ff0050); padding: 2px; border-radius: 8px; cursor: pointer; }
+        .add-btn-inner { background: #fff; color: #000; padding: 3px 12px; border-radius: 6px; font-weight: bold; }
+
+        /* Profile Screen */
+        .profile-header { display: flex; justify-content: space-between; padding: 15px; font-size: 1.2rem; }
+        .profile-info { display: flex; flex-direction: column; align-items: center; padding: 10px 0; }
+        .profile-avatar { width: 90px; height: 90px; border-radius: 50%; background: #222; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; position: relative; margin-bottom: 10px; border: 1px solid #333; }
+        .profile-avatar .add-story { position: absolute; bottom: 0; right: 0; background: #00f2fe; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; border: 2px solid #000; }
+        .stats-row { display: flex; gap: 25px; margin: 15px 0; text-align: center; }
+        .stat-num { font-weight: bold; font-size: 1.1rem; }
+        .stat-label { font-size: 0.75rem; color: #888; }
+        .profile-actions { display: flex; gap: 8px; margin-bottom: 15px; }
+        .btn-profile { background: #1f1f1f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+
+        /* Side Drawer Menu */
+        .drawer { position: fixed; top: 0; right: -100%; width: 80%; height: 100%; background: #fff; color: #000; z-index: 200; transition: 0.3s; padding: 20px 15px; overflow-y: auto; }
+        .drawer.open { right: 0; }
+        .drawer-section { margin-bottom: 20px; }
+        .drawer-title { font-size: 0.75rem; color: #888; margin-bottom: 10px; }
+        .drawer-item { display: flex; align-items: center; gap: 15px; padding: 12px 0; font-size: 0.95rem; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+
+        /* Wallet / Balance Screen */
+        .wallet-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; font-size: 1.1rem; border-bottom: 1px solid #111; }
+        .balance-card { text-align: center; padding: 25px 15px; }
+        .balance-title { color: #888; font-size: 0.85rem; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .balance-amount { font-size: 2.2rem; font-weight: bold; margin-bottom: 15px; }
+        .coins-badge { display: inline-flex; align-items: center; gap: 8px; background: #111; border: 1px solid #222; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; }
+        .coins-badge i { color: #ffb703; }
+        .wallet-banner { margin: 15px; background: #111; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .services-grid { display: flex; justify-content: space-around; margin: 20px 15px; background: #111; padding: 20px 10px; border-radius: 12px; text-align: center; }
+        .service-item { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 0.8rem; }
+        .service-item i { font-size: 1.4rem; background: #222; padding: 12px; border-radius: 50%; color: #fff; }
+
+        /* Camera / Camera Overlay Screen */
+        .camera-screen { position: relative; background: #000; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
+        .camera-top { display: flex; justify-content: space-between; align-items: center; padding: 15px; z-index: 10; }
+        .sound-selector { background: rgba(255,255,255,0.2); padding: 6px 15px; border-radius: 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .camera-tools { position: absolute; right: 15px; top: 70px; display: flex; flex-direction: column; gap: 18px; z-index: 10; font-size: 1.2rem; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .camera-bottom { padding-bottom: 20px; z-index: 10; display: flex; flex-direction: column; align-items: center; }
+        .mode-selector { display: flex; gap: 15px; font-size: 0.85rem; color: #888; margin-bottom: 15px; overflow-x: auto; max-width: 90%; }
+        .mode-selector span.active { color: #fff; font-weight: bold; background: rgba(255,255,255,0.2); padding: 2px 10px; border-radius: 12px; }
+        .record-btn-container { display: flex; align-items: center; gap: 30px; }
+        .record-btn { width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; background: #ff0050; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* Music Picker Sheet */
+        .music-sheet { position: fixed; bottom: -100%; left: 0; width: 100%; height: 70%; background: #111; border-radius: 16px 16px 0 0; z-index: 300; transition: 0.3s; padding: 15px; display: flex; flex-direction: column; }
+        .music-sheet.open { bottom: 0; }
+        .music-tabs { display: flex; justify-content: space-around; border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 10px; font-size: 0.9rem; color: #888; }
+        .music-tabs span.active { color: #fff; border-bottom: 2px solid #fff; font-weight: bold; }
+        .music-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 0.5px solid #222; }
+        .music-info { display: flex; align-items: center; gap: 12px; }
+        .music-thumb { width: 45px; height: 45px; border-radius: 6px; background: #333; }
+
+        /* Modals & Backdrop */
+        .modal-bottom { position: fixed; bottom: -100%; left: 0; width: 100%; background: #fff; color: #000; border-radius: 16px 16px 0 0; z-index: 300; transition: 0.3s; padding: 20px; }
+        .modal-bottom.open { bottom: 0; }
+        .backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 150; display: none; }
+        .backdrop.open { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="backdrop" id="backdrop" onclick="closeAllModals()"></div>
+
+<!-- SCREEN 1: FEED (HOME) -->
+<div class="screen active" id="screen-feed">
+    <div class="top-feed-bar">
+        <i class="fa-solid fa-tv" onclick="switchScreen('screen-live')"></i>
+        <div class="tabs">
+            <span>المجتمع</span>
+            <span>أتابعه</span>
+            <span class="active">لك</span>
+        </div>
+        <i class="fa-solid fa-magnifying-glass" onclick="switchScreen('screen-search')"></i>
+    </div>
+
+    <div class="feed">
+        <div class="post">
+            <div class="post-video"><i class="fa-solid fa-play"></i></div>
+            <div class="post-overlay">
+                <div class="username-row">
+                    <span class="username" id="feed-user-display">FARS</span>
+                    <span class="badge-founder" id="feed-founder-tag">المؤسس</span>
+                    <i class="fa-solid fa-circle-check verified-check" id="feed-verify-tag"></i>
+                </div>
+                <div class="caption">مرحباً بكم في واجهة RIVO المحدثة بالأداء والتصميم الكامل! 🔥</div>
+            </div>
+            <div class="actions-sidebar">
+                <button class="action-btn" onclick="toggleLike(this)"><i class="fa-solid fa-heart"></i><span>16.4K</span></button>
+                <button class="action-btn"><i class="fa-solid fa-comment-dots"></i><span>85</span></button>
+                <button class="action-btn"><i class="fa-solid fa-bookmark"></i><span>1175</span></button>
+                <button class="action-btn"><i class="fa-solid fa-share"></i><span>322</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCREEN 2: PROFILE -->
+<div class="screen" id="screen-profile">
+    <div class="profile-header">
+        <i class="fa-solid fa-bars" onclick="openDrawer()"></i>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <i class="fa-solid fa-user-plus"></i>
+            <span id="profile-handle">@e_ee936</span>
+        </div>
+        <i class="fa-solid fa-pen" onclick="changeUsernamePrompt()"></i>
+    </div>
+
+    <div class="profile-info">
+        <div class="profile-avatar">
+            <i class="fa-solid fa-user"></i>
+            <div class="add-story"><i class="fa-solid fa-plus"></i></div>
+        </div>
+        <div class="username-row">
+            <h3 id="profile-name-display">FARS</h3>
+            <span class="badge-founder" id="profile-founder-tag">المؤسس</span>
+            <i class="fa-solid fa-circle-check verified-check" id="profile-verify-tag"></i>
+        </div>
+
+        <div class="stats-row">
+            <div><div class="stat-num">33</div><div class="stat-label">أتابعه</div></div>
+            <div><div class="stat-num">31</div><div class="stat-label">متابعين</div></div>
+            <div><div class="stat-num">55</div><div class="stat-label">تسجيلات الإعجاب</div></div>
+        </div>
+
+        <div class="profile-actions">
+            <button class="btn-profile" onclick="changeUsernamePrompt()">تعديل الملف الشخصي</button>
+            <button class="btn-profile" id="req-verify-btn" onclick="requestVerification()">طلب توثيق</button>
+        </div>
+    </div>
+
+    <!-- Admin Panel inside Profile for Founder -->
+    <div id="founder-admin-box" style="display:none; padding: 15px; background: #111; margin: 10px 15px; border-radius: 8px;">
+        <h4 style="color: #20d5ec; font-size: 0.85rem; margin-bottom: 8px;">طلبات التوثيق (خاص بالمؤسس FARS)</h4>
+        <div id="pending-list-box" style="font-size: 0.8rem; color: #aaa;">لا توجد طلبات معلقة</div>
+    </div>
+</div>
+
+<!-- SCREEN 3: WALLET / BALANCE (MATCHING IMAGES 1000076109 & 1000076111) -->
+<div class="screen" id="screen-wallet">
+    <div class="wallet-header">
+        <i class="fa-solid fa-chevron-right" onclick="switchScreen('screen-profile')"></i>
+        <span>رصيد <i class="fa-solid fa-shield-halved" style="color:#00f2fe; font-size:0.8rem;"></i></span>
+        <i class="fa-solid fa-gear"></i>
+    </div>
+    <div class="balance-card">
+        <div class="balance-title">الرصيد المقدّر USD <i class="fa-regular fa-eye-slash"></i></div>
+        <div class="balance-amount">&lt; 0.00</div>
+        <div class="coins-badge" onclick="openRechargeOffer()">
+            <i class="fa-solid fa-coins"></i>
+            <span>العملات <b>21</b></span>
+            <span style="color: #ff0050; margin-right: 8px;">الحصول على عملات &larr;</span>
+        </div>
+    </div>
+    <div class="wallet-banner" onclick="openRechargeOffer()">
+        <div>
+            <div style="font-weight: bold; font-size: 0.95rem;">عرض أول عملية شحن &gt;</div>
+            <div style="font-size: 0.75rem; color: #888; margin-top: 3px;">احصل على هدايا وعملات إضافية</div>
+        </div>
+        <i class="fa-solid fa-gift" style="font-size: 2rem; color: #ff0050;"></i>
+    </div>
+    <div style="padding: 0 15px; font-size: 0.85rem; color: #888; margin-top: 10px;">الخدمات</div>
+    <div class="services-grid">
+        <div class="service-item"><i class="fa-solid fa-tv"></i><span>مكافآت LIVE</span></div>
+        <div class="service-item"><i class="fa-solid fa-chart-simple"></i><span>الربح</span></div>
+        <div class="service-item"><i class="fa-solid fa-calendar-check"></i><span>مدير الاشتراكات</span></div>
+    </div>
+</div>
+
+<!-- SCREEN 4: CAMERA / RECORD (MATCHING IMAGES 1000076101 & 1000076105) -->
+<div class="screen camera-screen" id="screen-camera">
+    <div class="camera-top">
+        <i class="fa-solid fa-xmark" style="font-size: 1.4rem;" onclick="switchScreen('screen-feed')"></i>
+        <div class="sound-selector" onclick="openMusicSheet()">
+            <i class="fa-solid fa-music"></i>
+            <span id="selected-sound-name">إضافة صوت</span>
+        </div>
+        <i class="fa-solid fa-bolt" style="font-size: 1.2rem;"></i>
+    </div>
+
+    <div class="camera-tools">
+        <i class="fa-solid fa-rotate-left"></i>
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <i class="fa-regular fa-clock"></i>
+        <i class="fa-solid fa-border-all"></i>
+        <i class="fa-solid fa-user-gear"></i>
+        <i class="fa-solid fa-chevron-down"></i>
+    </div>
+
+    <div class="camera-bottom">
+        <div class="mode-selector">
+            <span>10 د</span>
+            <span>60 ث</span>
+            <span class="active">15 ث</span>
+            <span>صورة</span>
+            <span>نص</span>
+        </div>
+        <div class="record-btn-container">
+            <div style="width: 40px; height: 40px; border-radius: 8px; background: #222; overflow: hidden;"><i class="fa-solid fa-image" style="padding: 12px;"></i></div>
+            <div class="record-btn" onclick="alert('جارٍ بدء التسجيل...')"></div>
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #222; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-face-smile"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- SCREEN 5: LIVE CREATION (MATCHING IMAGE 1000076103) -->
+<div class="screen camera-screen" id="screen-live-studio">
+    <div class="camera-top">
+        <i class="fa-solid fa-xmark" style="font-size: 1.4rem;" onclick="switchScreen('screen-feed')"></i>
+        <div style="background: rgba(0,0,0,0.5); padding: 5px 12px; border-radius: 15px; font-size: 0.8rem;">
+            <i class="fa-solid fa-play"></i> تحقق من صلاحية الوصول إلى LIVE
+        </div>
+        <div></div>
+    </div>
+
+    <div style="display: flex; justify-content: center; gap: 40px; margin-top: auto; margin-bottom: 20px;">
+        <div style="text-align: center;"><i class="fa-solid fa-rotate" style="font-size: 1.5rem;"></i><div style="font-size: 0.75rem; margin-top: 4px;">قلب</div></div>
+        <div style="text-align: center;"><i class="fa-solid fa-wand-magic-sparkles" style="font-size: 1.5rem;"></i><div style="font-size: 0.75rem; margin-top: 4px;">تجميل</div></div>
+        <div style="text-align: center;"><i class="fa-solid fa-sparkles" style="font-size: 1.5rem;"></i><div style="font-size: 0.75rem; margin-top: 4px;">المؤثرات</div></div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.1); margin: 0 20px 20px 20px; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <div style="font-weight: bold; font-size: 0.9rem;">جَرّب وضع التدريب[span_1](start_span)[span_1](end_span)</div>
+            <div style="font-size: 0.75rem; color: #aaa;">هذا الوضع يظهر لك أنت فقط[span_2](start_span)[span_2](end_span)</div>
+        </div>
+        <button style="background: #fff; color: #000; border: none; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 0.8rem;">البدء</button>
+    </div>
+
+    <div style="padding: 0 20px 30px 20px;">
+        <button style="width: 100%; background: #ff0050; border: none; color: #fff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1rem;">بدء LIVE</button>
+    </div>
+</div>
+
+<!-- MUSIC PICKER SHEET (MATCHING IMAGE 1000076107) -->
+<div class="music-sheet" id="music-sheet">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span style="font-weight: bold;">أصوات</span>
+        <i class="fa-solid fa-xmark" onclick="closeAllModals()"></i>
+    </div>
+    <div class="music-tabs">
+        <span>المشهور</span>
+        <span class="active">اخترنا لك</span>
+        <span>المفضلات</span>
+        <span>الأحدث</span>
+    </div>
+    <div style="overflow-y: auto; flex: 1;">
+        <div class="music-item" onclick="selectSound('7AQIBA - Afroto')">
+            <div class="music-info">
+                <div class="music-thumb"></div>
+                <div>
+                    <div style="font-weight: bold; font-size: 0.9rem; color: #ff0050;">7AQIBA</div>
+                    <div style="font-size: 0.75rem; color: #888;">Afroto &bull; 0:26</div>
+                </div>
+            </div>
+            <i class="fa-regular fa-bookmark"></i>
+        </div>
+        <div class="music-item" onclick="selectSound('STRINGS FUNK')">
+            <div class="music-info">
+                <div class="music-thumb"></div>
+                <div>
+                    <div style="font-weight: bold; font-size: 0.9rem;">STRINGS FUNK</div>
+                    <div style="font-size: 0.75rem; color: #888;">Young Madz &bull; 1:00</div>
+                </div>
+            </div>
+            <i class="fa-regular fa-bookmark"></i>
+        </div>
+    </div>
+</div>
+
+<!-- RECHARGE OFFER MODAL (MATCHING IMAGE 1000076111) -->
+<div class="modal-bottom" id="recharge-modal">
+    <div style="text-align: center; margin-bottom: 15px;">
+        <h3 style="font-size: 1.1rem; margin-bottom: 5px;">عرض أول عملية شحن</h3>
+        <p style="font-size: 0.75rem; color: #666;">المكافآت متاحة فقط مع الشحن النقدي. ينتهي العرض بعد يومين.</p>
+    </div>
+    <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <div style="font-size: 0.85rem; font-weight: bold;">احصل على 3 من الورود في الحقيبة</div>
+            <div style="font-size: 0.75rem; color: #666;">احصل الآن على 1، ثم باقي المجموعة بعد 24 ساعة</div>
+        </div>
+        <i class="fa-solid fa-rose" style="font-size: 1.8rem; color: #ff0050;"></i>
+    </div>
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <div style="flex: 1; border: 2px solid #ff0050; padding: 12px; border-radius: 8px; text-align: center; background: #fff0f3;">
+            <div style="font-weight: bold; color: #ff0050;">5 <i class="fa-solid fa-coins"></i></div>
+            <div style="font-size: 0.75rem; color: #666;">$US 0,08</div>
+        </div>
+        <div style="flex: 1; border: 1px solid #ddd; padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-weight: bold;">70+47 <i class="fa-solid fa-coins"></i></div>
+            <div style="font-size: 0.75rem; color: #666;">$US 1,00</div>
+        </div>
+    </div>
+    <button style="width: 100%; background: #ff0050; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: bold;" onclick="closeAllModals()">الحصول على 5 عملات ($US 0,08)</button>
+</div>
+
+<!-- SIDE DRAWER MENU -->
+<div class="drawer" id="side-drawer">
+    <div class="drawer-section">
+        <div class="drawer-title">الأصول</div>
+        <div class="drawer-item" onclick="switchScreen('screen-wallet')"><i class="fa-solid fa-wallet"></i><span>رصيد</span></div>
+    </div>
+    <div class="drawer-section">
+        <div class="drawer-title">الأدوات الشخصية</div>
+        <div class="drawer-item"><i class="fa-regular fa-clock"></i><span>مركز الأنشطة</span></div>
+        <div class="drawer-item"><i class="fa-solid fa-qrcode"></i><span>رمز QR لديك</span></div>
+    </div>
+    <div class="drawer-section">
+        <div class="drawer-title">تسجيل الدخول</div>
+        <div class="drawer-item" onclick="logout()"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>تسجيل الخروج</span></div>
+    </div>
+</div>
+
+<!-- BOTTOM NAV BAR -->
+<div class="bottom-nav">
+    <button class="nav-item active" onclick="switchScreen('screen-feed')"><i class="fa-solid fa-house"></i><span>الصفحة الرئيسية</span></button>
+    <button class="nav-item" onclick="switchScreen('screen-live-studio')"><i class="fa-solid fa-headset"></i><span>LIVE</span></button>
+    <div class="add-btn" onclick="switchScreen('screen-camera')"><div class="add-btn-inner"><i class="fa-solid fa-plus"></i></div></div>
+    <button class="nav-item" onclick="switchScreen('screen-search')"><i class="fa-solid fa-message"></i><span>صندوق الوارد</span></button>
+    <button class="nav-item" onclick="switchScreen('screen-profile')"><i class="fa-solid fa-user"></i><span>الملف الشخصي</span></button>
+</div>
+
+<script>
+    let currentUser = localStorage.getItem('rivo_app_user') || 'FARS';
+    let requests = JSON.parse(localStorage.getItem('rivo_app_reqs')) || [];
+
+    window.onload = function() {
+        initUser(currentUser);
+    };
+
+    function initUser(username) {
+        currentUser = username;
+        localStorage.setItem('rivo_app_user', currentUser);
+        
+        let uData = JSON.parse(localStorage.getItem(`u_${currentUser}`));
+        if (!uData) {
+            const isFounder = (currentUser.toUpperCase() === 'FARS');
+            uData = { name: currentUser, isFounder: isFounder, isVerified: isFounder };
+            localStorage.setItem(`u_${currentUser}`, JSON.stringify(uData));
+        }
+        updateUI();
+    }
+
+    function updateUI() {
+        const uData = JSON.parse(localStorage.getItem(`u_${currentUser}`));
+
+        document.getElementById('profile-handle').innerText = '@' + uData.name;
+        document.getElementById('profile-name-display').innerText = uData.name;
+        document.getElementById('feed-user-display').innerText = uData.name;
+
+        const founderShow = uData.isFounder ? 'inline-block' : 'none';
+        const verifyShow = uData.isVerified ? 'inline-block' : 'none';
+
+        document.getElementById('profile-founder-tag').style.display = founderShow;
+        document.getElementById('profile-verify-tag').style.display = verifyShow;
+        document.getElementById('feed-founder-tag').style.display = founderShow;
+        document.getElementById('feed-verify-tag').style.display = verifyShow;
+
+        if (uData.isFounder) {
+            document.getElementById('founder-admin-box').style.display = 'block';
+            document.getElementById('req-verify-btn').style.display = 'none';
+            renderAdminRequests();
+        } else {
+            document.getElementById('founder-admin-box').style.display = 'none';
+            document.getElementById('req-verify-btn').style.display = uData.isVerified ? 'none' : 'inline-block';
+        }
+    }
+
+    function switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        closeAllModals();
+    }
+
+    function openDrawer() {
+        document.getElementById('side-drawer').classList.add('open');
+        document.getElementById('backdrop').classList.add('open');
+    }
+
+    function openMusicSheet() {
+        document.getElementById('music-sheet').classList.add('open');
+        document.getElementById('backdrop').classList.add('open');
+    }
+
+    function openRechargeOffer() {
+        document.getElementById('recharge-modal').classList.add('open');
+        document.getElementById('backdrop').classList.add('open');
+    }
+
+    function selectSound(title) {
+        document.getElementById('selected-sound-name').innerText = title;
+        closeAllModals();
+    }
+
+    function closeAllModals() {
+        document.getElementById('side-drawer').classList.remove('open');
+        document.getElementById('music-sheet').classList.remove('open');
+        document.getElementById('recharge-modal').classList.remove('open');
+        document.getElementById('backdrop').classList.remove('open');
+    }
+
+    function changeUsernamePrompt() {
+        const name = prompt("أدخل اسمك الجديد:", currentUser);
+        if (name && name.trim()) {
+            initUser(name.trim());
+        }
+    }
+
+    function requestVerification() {
+        if (!requests.includes(currentUser)) {
+            requests.push(currentUser);
+            localStorage.setItem('rivo_app_reqs', JSON.stringify(requests));
+            alert("تم إرسال طلب التوثيق إلى المؤسس FARS!");
+        } else {
+            alert("طلبك بانتظار موافقة المؤسس FARS");
+        }
+    }
+
+    function renderAdminRequests() {
+        const box = document.getElementById('pending-list-box');
+        if (requests.length === 0) {
+            box.innerHTML = 'لا توجد طلبات معلقة حالياً';
+            return;
+        }
+        box.innerHTML = '';
+        requests.forEach(u => {
+            box.innerHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                    <span>${u}</span>
+                    <button onclick="approveVerify('${u}')" style="background:#00f2fe; border:none; padding:3px 8px; border-radius:4px; font-weight:bold; cursor:pointer;">توثيق</button>
+                </div>
+            `;
+        });
+    }
+
+    function approveVerify(user) {
+        let uData = JSON.parse(localStorage.getItem(`u_${user}`)) || { name: user, isFounder: false, isVerified: false };
+        uData.isVerified = true;
+        localStorage.setItem(`u_${user}`, JSON.stringify(uData));
+
+        requests = requests.filter(r => r !== user);
+        localStorage.setItem('rivo_app_reqs', JSON.stringify(requests));
+
+        alert(`تم توثيق ${user} بنجاح!`);
+        updateUI();
+    }
+
+    function logout() {
+        localStorage.removeItem('rivo_app_user');
+        initUser('FARS');
+        closeAllModals();
+    }
+
+    function toggleLike(btn) {
+        const icon = btn.querySelector('i');
+        icon.style.color = (icon.style.color === 'rgb(255, 0, 80)') ? '#fff' : '#ff0050';
+    }
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RIVO - TikTok Clone</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        body { background-color: #000; color: #fff; overflow: hidden; height: 100vh; }
+
+        .screen { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; background: #000; flex-direction: column; z-index: 1; }
+        .screen.active { display: flex; }
+
+        /* 1. Feed Screen */
+        .feed { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+        .feed::-webkit-scrollbar { display: none; }
+        .post { height: 100vh; scroll-snap-align: start; position: relative; background: #111; display: flex; align-items: center; justify-content: center; }
+        .post-video { width: 100%; height: 100%; object-fit: cover; background: #1a1a1a; display: flex; justify-content: center; align-items: center; font-size: 4rem; color: #333; }
+        .post-preview-img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .top-feed-bar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-between; padding: 0 15px; z-index: 10; font-weight: bold; font-size: 1.1rem; }
+        .top-feed-bar .tabs { display: flex; gap: 15px; }
+        .top-feed-bar .tabs span.active { border-bottom: 2px solid #fff; padding-bottom: 2px; }
+
+        .post-overlay { position: absolute; bottom: 80px; right: 15px; left: 80px; z-index: 10; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+        .username-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+        .badge-founder { background: linear-gradient(45deg, #ff0050, #00f2fe); color: #fff; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .verified-check { color: #20d5ec; font-size: 0.9rem; }
+
+        .actions-sidebar { position: absolute; bottom: 100px; left: 15px; display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 10; }
+        .action-btn { background: none; border: none; color: #fff; font-size: 1.8rem; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+        .action-btn span { font-size: 0.75rem; }
+
+        /* Bottom Nav Bar */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; border-top: 0.5px solid #222; display: flex; justify-space-around; align-items: center; z-index: 100; }
+        .nav-item { color: #888; background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 1.2rem; cursor: pointer; }
+        .nav-item.active { color: #fff; }
+        .nav-item span { font-size: 0.65rem; }
+        .add-btn { background: linear-gradient(90deg, #00f2fe, #ff0050); padding: 2px; border-radius: 8px; cursor: pointer; }
+        .add-btn-inner { background: #fff; color: #000; padding: 3px 12px; border-radius: 6px; font-weight: bold; }
+
+        /* Profile Screen */
+        .profile-header { display: flex; justify-content: space-between; padding: 15px; font-size: 1.2rem; }
+        .profile-info { display: flex; flex-direction: column; align-items: center; padding: 10px 0; }
+        .profile-avatar { width: 90px; height: 90px; border-radius: 50%; background: #222; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; position: relative; margin-bottom: 10px; border: 1px solid #333; overflow: hidden; }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .profile-avatar .add-story { position: absolute; bottom: 0; right: 0; background: #00f2fe; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; border: 2px solid #000; }
+        .stats-row { display: flex; gap: 25px; margin: 15px 0; text-align: center; }
+        .stat-num { font-weight: bold; font-size: 1.1rem; }
+        .stat-label { font-size: 0.75rem; color: #888; }
+        .profile-actions { display: flex; gap: 8px; margin-bottom: 15px; }
+        .btn-profile { background: #1f1f1f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+
+        /* Wallet Screen */
+        .wallet-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; font-size: 1.1rem; border-bottom: 1px solid #111; }
+        .balance-card { text-align: center; padding: 25px 15px; }
+        .balance-title { color: #888; font-size: 0.85rem; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .balance-amount { font-size: 2.2rem; font-weight: bold; margin-bottom: 15px; }
+        .coins-badge { display: inline-flex; align-items: center; gap: 8px; background: #111; border: 1px solid #222; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; }
+        .coins-badge i { color: #ffb703; }
+        .wallet-banner { margin: 15px; background: #111; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .services-grid { display: flex; justify-content: space-around; margin: 20px 15px; background: #111; padding: 20px 10px; border-radius: 12px; text-align: center; }
+        .service-item { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 0.8rem; }
+        .service-item i { font-size: 1.4rem; background: #222; padding: 12px; border-radius: 50%; color: #fff; }
+
+        /* Camera & Image Upload Screen */
+        .camera-screen { position: relative; background: #000; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+        .camera-top { display: flex; justify-content: space-between; align-items: center; padding: 15px; z-index: 10; }
+        .sound-selector { background: rgba(255,255,255,0.2); padding: 6px 15px; border-radius: 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .camera-tools { position: absolute; right: 15px; top: 70px; display: flex; flex-direction: column; gap: 18px; z-index: 10; font-size: 1.2rem; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .camera-bottom { padding-bottom: 20px; z-index: 10; display: flex; flex-direction: column; align-items: center; }
+        .mode-selector { display: flex; gap: 15px; font-size: 0.85rem; color: #888; margin-bottom: 15px; overflow-x: auto; max-width: 90%; }
+        .mode-selector span.active { color: #fff; font-weight: bold; background: rgba(255,255,255,0.2); padding: 2px 10px; border-radius: 12px; }
+        .record-btn-container { display: flex; align-items: center; gap: 30px; }
+        .record-btn { width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; background: #ff0050; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* Image Preview Box */
+        .image-preview-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; justify-content: center; align-items: center; z-index: 5; }
+        .image-preview-container img { width: 100%; height: 100%; object-fit: contain; }
+
+        /* Gallery Button Box */
+        .gallery-box { width: 42px; height: 42px; border-radius: 8px; background: #222; overflow: hidden; border: 1px solid #444; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .gallery-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Music Sheet & Modals */
+        .music-sheet { position: fixed; bottom: -100%; left: 0; width: 100%; height: 70%; background: #111; border-radius: 16px 16px 0 0; z-index: 300; transition: 0.3s; padding: 15px; display: flex; flex-direction: column; }
+        .music-sheet.open { bottom: 0; }
+        .music-tabs { display: flex; justify-content: space-around; border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 10px; font-size: 0.9rem; color: #888; }
+        .music-tabs span.active { color: #fff; border-bottom: 2px solid #fff; font-weight: bold; }
+        .music-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 0.5px solid #222; }
+        .music-info { display: flex; align-items: center; gap: 12px; }
+        .music-thumb { width: 45px; height: 45px; border-radius: 6px; background: #333; }
+
+        .modal-bottom { position: fixed; bottom: -100%; left: 0; width: 100%; background: #fff; color: #000; border-radius: 16px 16px 0 0; z-index: 300; transition: 0.3s; padding: 20px; }
+        .modal-bottom.open { bottom: 0; }
+        .backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 150; display: none; }
+        .backdrop.open { display: block; }
+        
+        .drawer { position: fixed; top: 0; right: -100%; width: 80%; height: 100%; background: #fff; color: #000; z-index: 200; transition: 0.3s; padding: 20px 15px; overflow-y: auto; }
+        .drawer.open { right: 0; }
+        .drawer-section { margin-bottom: 20px; }
+        .drawer-title { font-size: 0.75rem; color: #888; margin-bottom: 10px; }
+        .drawer-item { display: flex; align-items: center; gap: 15px; padding: 12px 0; font-size: 0.95rem; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="backdrop" id="backdrop" onclick="closeAllModals()"></div>
+
+<!-- HIDDEN FILE INPUT FOR GALLERY SELECTOR -->
+<input type="file" id="gallery-input" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
+
+<!-- SCREEN 1: FEED (HOME) -->
+<div class="screen active" id="screen-feed">
+    <div class="top-feed-bar">
+        <i class="fa-solid fa-tv" onclick="switchScreen('screen-live-studio')"></i>
+        <div class="tabs">
+            <span>المجتمع</span>
+            <span>أتابعه</span>
+            <span class="active">لك</span>
+        </div>
+        <i class="fa-solid fa-magnifying-glass"></i>
+    </div>
+
+    <div class="feed">
+        <div class="post" id="main-feed-post">
+            <div class="post-video" id="feed-media-container"><i class="fa-solid fa-play"></i></div>
+            <div class="post-overlay">
+                <div class="username-row">
+                    <span class="username" id="feed-user-display">FARS</span>
+                    <span class="badge-founder" id="feed-founder-tag">المؤسس</span>
+                    <i class="fa-solid fa-circle-check verified-check" id="feed-verify-tag"></i>
+                </div>
+                <div class="caption" id="feed-caption-display">مرحباً بكم في واجهة RIVO المحدثة بالأداء والتصميم الكامل! 🔥</div>
+            </div>
+            <div class="actions-sidebar">
+                <button class="action-btn" onclick="toggleLike(this)"><i class="fa-solid fa-heart"></i><span>16.4K</span></button>
+                <button class="action-btn"><i class="fa-solid fa-comment-dots"></i><span>85</span></button>
+                <button class="action-btn"><i class="fa-solid fa-bookmark"></i><span>1175</span></button>
+                <button class="action-btn"><i class="fa-solid fa-share"></i><span>322</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCREEN 2: PROFILE -->
+<div class="screen" id="screen-profile">
+    <div class="profile-header">
+        <i class="fa-solid fa-bars" onclick="openDrawer()"></i>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <i class="fa-solid fa-user-plus"></i>
+            <span id="profile-handle">@e_ee936</span>
+        </div>
+        <i class="fa-solid fa-pen" onclick="changeUsernamePrompt()"></i>
+    </div>
+
+    <div class="profile-info">
+        <div class="profile-avatar" onclick="openGallery('avatar')">
+            <div id="avatar-container"><i class="fa-solid fa-user"></i></div>
+            <div class="add-story"><i class="fa-solid fa-plus"></i></div>
+        </div>
+        <div class="username-row">
+            <h3 id="profile-name-display">FARS</h3>
+            <span class="badge-founder" id="profile-founder-tag">المؤسس</span>
+            <i class="fa-solid fa-circle-check verified-check" id="profile-verify-tag"></i>
+        </div>
+
+        <div class="stats-row">
+            <div><div class="stat-num">33</div><div class="stat-label">أتابعه</div></div>
+            <div><div class="stat-num">31</div><div class="stat-label">متابعين</div></div>
+            <div><div class="stat-num">55</div><div class="stat-label">تسجيلات الإعجاب</div></div>
+        </div>
+
+        <div class="profile-actions">
+            <button class="btn-profile" onclick="openGallery('avatar')">تغيير الصورة الشخصية</button>
+            <button class="btn-profile" id="req-verify-btn" onclick="requestVerification()">طلب توثيق</button>
+        </div>
+    </div>
+
+    <!-- Admin Panel inside Profile for Founder -->
+    <div id="founder-admin-box" style="display:none; padding: 15px; background: #111; margin: 10px 15px; border-radius: 8px;">
+        <h4 style="color: #20d5ec; font-size: 0.85rem; margin-bottom: 8px;">طلبات التوثيق (خاص بالمؤسس FARS)</h4>
+        <div id="pending-list-box" style="font-size: 0.8rem; color: #aaa;">لا توجد طلبات معلقة</div>
+    </div>
+</div>
+
+<!-- SCREEN 3: WALLET / BALANCE -->
+<div class="screen" id="screen-wallet">
+    <div class="wallet-header">
+        <i class="fa-solid fa-chevron-right" onclick="switchScreen('screen-profile')"></i>
+        <span>رصيد <i class="fa-solid fa-shield-halved" style="color:#00f2fe; font-size:0.8rem;"></i></span>
+        <i class="fa-solid fa-gear"></i>
+    </div>
+    <div class="balance-card">
+        <div class="balance-title">الرصيد المقدّر USD <i class="fa-regular fa-eye-slash"></i></div>
+        <div class="balance-amount">&lt; 0.00</div>
+        <div class="coins-badge" onclick="openRechargeOffer()">
+            <i class="fa-solid fa-coins"></i>
+            <span>العملات <b>21</b></span>
+            <span style="color: #ff0050; margin-right: 8px;">الحصول على عملات &larr;</span>
+        </div>
+    </div>
+    <div class="wallet-banner" onclick="openRechargeOffer()">
+        <div>
+            <div style="font-weight: bold; font-size: 0.95rem;">عرض أول عملية شحن &gt;</div>
+            <div style="font-size: 0.75rem; color: #888; margin-top: 3px;">احصل على هدايا وعملات إضافية</div>
+        </div>
+        <i class="fa-solid fa-gift" style="font-size: 2rem; color: #ff0050;"></i>
+    </div>
+    <div style="padding: 0 15px; font-size: 0.85rem; color: #888; margin-top: 10px;">الخدمات</div>
+    <div class="services-grid">
+        <div class="service-item"><i class="fa-solid fa-tv"></i><span>مكافآت LIVE</span></div>
+        <div class="service-item"><i class="fa-solid fa-chart-simple"></i><span>الربح</span></div>
+        <div class="service-item"><i class="fa-solid fa-calendar-check"></i><span>مدير الاشتراكات</span></div>
+    </div>
+</div>
+
+<!-- SCREEN 4: CAMERA & GALLERY PICKER -->
+<div class="screen camera-screen" id="screen-camera">
+    <!-- Image Preview Box when selected from Gallery -->
+    <div class="image-preview-container" id="camera-image-preview">
+        <img id="selected-image-tag" src="" alt="المعاينة">
+    </div>
+
+    <div class="camera-top">
+        <i class="fa-solid fa-xmark" style="font-size: 1.4rem;" onclick="closeCameraPreview()"></i>
+        <div class="sound-selector" onclick="openMusicSheet()">
+            <i class="fa-solid fa-music"></i>
+            <span id="selected-sound-name">إضافة صوت</span>
+        </div>
+        <i class="fa-solid fa-bolt" style="font-size: 1.2rem;"></i>
+    </div>
+
+    <div class="camera-tools">
+        <i class="fa-solid fa-rotate-left"></i>
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <i class="fa-regular fa-clock"></i>
+        <i class="fa-solid fa-border-all"></i>
+        <i class="fa-solid fa-user-gear"></i>
+    </div>
+
+    <div class="camera-bottom">
+        <div class="mode-selector">
+            <span>10 د</span>
+            <span>60 ث</span>
+            <span class="active">15 ث</span>
+            <span>صورة</span>
+            <span>نص</span>
+        </div>
+        <div class="record-btn-container">
+            <!-- Gallery Select Button -->
+            <div class="gallery-box" onclick="openGallery('post')">
+                <i class="fa-solid fa-image" style="font-size: 1.2rem; color: #fff;"></i>
+            </div>
+            
+            <div class="record-btn" id="main-record-btn" onclick="publishSelectedPhoto()"></div>
+            
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #222; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-face-smile"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- SCREEN 5: LIVE CREATION -->
+<div class="screen camera-screen" id="screen-live-studio">
+    <div class="camera-top">
+        <i class="fa-solid fa-xmark" style="font-size: 1.4rem;" onclick="switchScreen('screen-feed')"></i>
+        <div style="background: rgba(0,0,0,0.5); padding: 5px 12px; border-radius: 15px; font-size: 0.8rem;">
+            <i class="fa-solid fa-play"></i> تحقق من صلاحية الوصول إلى LIVE
+        </div>
+        <div></div>
+    </div>
+
+    <div style="display: flex; justify-content: center; gap: 40px; margin-top: auto; margin-bottom: 20px;">
+        <div style="text-align: center;"><i class="fa-solid fa-rotate" style="font-size: 1.5rem;"></i><div style="font-size: 0.75rem; margin-top: 4px;">قلب</div></div>
+        <div style="text-align: center;"><i class="fa-solid fa-wand-magic-sparkles" style="font-size: 1.5rem;"></i><div style="font-size: 0.75rem; margin-top: 4px;">تجميل</div></div>
+        <div style="text-align: center;"><i class="fa-solid fa-sparkles" style="font-size: 1.5rem;"></i><div style="font-size: 0.75rem; margin-top: 4px;">المؤثرات</div></div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.1); margin: 0 20px 20px 20px; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <div style="font-weight: bold; font-size: 0.9rem;">جَرّب وضع التدريب[span_0](start_span)[span_0](end_span)</div>
+            <div style="font-size: 0.75rem; color: #aaa;">هذا الوضع يظهر لك أنت فقط[span_1](start_span)[span_1](end_span)</div>
+        </div>
+        <button style="background: #fff; color: #000; border: none; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 0.8rem;">البدء</button>
+    </div>
+
+    <div style="padding: 0 20px 30px 20px;">
+        <button style="width: 100%; background: #ff0050; border: none; color: #fff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1rem;">بدء LIVE</button>
+    </div>
+</div>
+
+<!-- MUSIC PICKER SHEET -->
+<div class="music-sheet" id="music-sheet">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span style="font-weight: bold;">أصوات</span>
+        <i class="fa-solid fa-xmark" onclick="closeAllModals()"></i>
+    </div>
+    <div class="music-tabs">
+        <span>المشهور</span>
+        <span class="active">اخترنا لك</span>
+        <span>المفضلات</span>
+        <span>الأحدث</span>
+    </div>
+    <div style="overflow-y: auto; flex: 1;">
+        <div class="music-item" onclick="selectSound('7AQIBA - Afroto')">
+            <div class="music-info">
+                <div class="music-thumb"></div>
+                <div>
+                    <div style="font-weight: bold; font-size: 0.9rem; color: #ff0050;">7AQIBA</div>
+                    <div style="font-size: 0.75rem; color: #888;">Afroto &bull; 0:26</div>
+                </div>
+            </div>
+            <i class="fa-regular fa-bookmark"></i>
+        </div>
+        <div class="music-item" onclick="selectSound('STRINGS FUNK')">
+            <div class="music-info">
+                <div class="music-thumb"></div>
+                <div>
+                    <div style="font-weight: bold; font-size: 0.9rem;">STRINGS FUNK</div>
+                    <div style="font-size: 0.75rem; color: #888;">Young Madz &bull; 1:00</div>
+                </div>
+            </div>
+            <i class="fa-regular fa-bookmark"></i>
+        </div>
+    </div>
+</div>
+
+<!-- RECHARGE OFFER MODAL -->
+<div class="modal-bottom" id="recharge-modal">
+    <div style="text-align: center; margin-bottom: 15px;">
+        <h3 style="font-size: 1.1rem; margin-bottom: 5px;">عرض أول عملية شحن</h3>
+        <p style="font-size: 0.75rem; color: #666;">المكافآت متاحة فقط مع الشحن النقدي. ينتهي العرض بعد يومين.</p>
+    </div>
+    <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <div style="font-size: 0.85rem; font-weight: bold;">احصل على 3 من الورود في الحقيبة</div>
+            <div style="font-size: 0.75rem; color: #666;">احصل الآن على 1، ثم باقي المجموعة بعد 24 ساعة</div>
+        </div>
+        <i class="fa-solid fa-rose" style="font-size: 1.8rem; color: #ff0050;"></i>
+    </div>
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <div style="flex: 1; border: 2px solid #ff0050; padding: 12px; border-radius: 8px; text-align: center; background: #fff0f3;">
+            <div style="font-weight: bold; color: #ff0050;">5 <i class="fa-solid fa-coins"></i></div>
+            <div style="font-size: 0.75rem; color: #666;">$US 0,08</div>
+        </div>
+        <div style="flex: 1; border: 1px solid #ddd; padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-weight: bold;">70+47 <i class="fa-solid fa-coins"></i></div>
+            <div style="font-size: 0.75rem; color: #666;">$US 1,00</div>
+        </div>
+    </div>
+    <button style="width: 100%; background: #ff0050; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: bold;" onclick="closeAllModals()">الحصول على 5 عملات ($US 0,08)</button>
+</div>
+
+<!-- SIDE DRAWER MENU -->
+<div class="drawer" id="side-drawer">
+    <div class="drawer-section">
+        <div class="drawer-title">الأصول</div>
+        <div class="drawer-item" onclick="switchScreen('screen-wallet')"><i class="fa-solid fa-wallet"></i><span>رصيد</span></div>
+    </div>
+    <div class="drawer-section">
+        <div class="drawer-title">الأدوات الشخصية</div>
+        <div class="drawer-item"><i class="fa-regular fa-clock"></i><span>مركز الأنشطة</span></div>
+        <div class="drawer-item"><i class="fa-solid fa-qrcode"></i><span>رمز QR لديك</span></div>
+    </div>
+    <div class="drawer-section">
+        <div class="drawer-title">تسجيل الدخول</div>
+        <div class="drawer-item" onclick="logout()"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>تسجيل الخروج</span></div>
+    </div>
+</div>
+
+<!-- BOTTOM NAV BAR -->
+<div class="bottom-nav">
+    <button class="nav-item active" onclick="switchScreen('screen-feed')"><i class="fa-solid fa-house"></i><span>الصفحة الرئيسية</span></button>
+    <button class="nav-item" onclick="switchScreen('screen-live-studio')"><i class="fa-solid fa-headset"></i><span>LIVE</span></button>
+    <div class="add-btn" onclick="switchScreen('screen-camera')"><div class="add-btn-inner"><i class="fa-solid fa-plus"></i></div></div>
+    <button class="nav-item" onclick="switchScreen('screen-feed')"><i class="fa-solid fa-message"></i><span>صندوق الوارد</span></button>
+    <button class="nav-item" onclick="switchScreen('screen-profile')"><i class="fa-solid fa-user"></i><span>الملف الشخصي</span></button>
+</div>
+
+<script>
+    let currentUser = localStorage.getItem('rivo_app_user') || 'FARS';
+    let requests = JSON.parse(localStorage.getItem('rivo_app_reqs')) || [];
+    let currentUploadTarget = 'post'; // 'post' or 'avatar'
+    let selectedImageBase64 = null;
+
+    window.onload = function() {
+        initUser(currentUser);
+    };
+
+    function initUser(username) {
+        currentUser = username;
+        localStorage.setItem('rivo_app_user', currentUser);
+        
+        let uData = JSON.parse(localStorage.getItem(`u_${currentUser}`));
+        if (!uData) {
+            const isFounder = (currentUser.toUpperCase() === 'FARS');
+            uData = { name: currentUser, isFounder: isFounder, isVerified: isFounder, avatar: null };
+            localStorage.setItem(`u_${currentUser}`, JSON.stringify(uData));
+        }
+        updateUI();
+    }
+
+    function updateUI() {
+        const uData = JSON.parse(localStorage.getItem(`u_${currentUser}`));
+
+        document.getElementById('profile-handle').innerText = '@' + uData.name;
+        document.getElementById('profile-name-display').innerText = uData.name;
+        document.getElementById('feed-user-display').innerText = uData.name;
+
+        // Avatar Update
+        if (uData.avatar) {
+            document.getElementById('avatar-container').innerHTML = `<img src="${uData.avatar}" />`;
+        } else {
+            document.getElementById('avatar-container').innerHTML = `<i class="fa-solid fa-user"></i>`;
+        }
+
+        const founderShow = uData.isFounder ? 'inline-block' : 'none';
+        const verifyShow = uData.isVerified ? 'inline-block' : 'none';
+
+        document.getElementById('profile-founder-tag').style.display = founderShow;
+        document.getElementById('profile-verify-tag').style.display = verifyShow;
+        document.getElementById('feed-founder-tag').style.display = founderShow;
+        document.getElementById('feed-verify-tag').style.display = verifyShow;
+
+        if (uData.isFounder) {
+            document.getElementById('founder-admin-box').style.display = 'block';
+            document.getElementById('req-verify-btn').style.display = 'none';
+            renderAdminRequests();
+        } else {
+            document.getElementById('founder-admin-box').style.display = 'none';
+            document.getElementById('req-verify-btn').style.display = uData.isVerified ? 'none' : 'inline-block';
+        }
+    }
+
+    /* GALLERY & IMAGE SELECTION LOGIC */
+    function openGallery(target) {
+        currentUploadTarget = target;
+        document.getElementById('gallery-input').click();
+    }
+
+    function handleImageSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                selectedImageBase64 = e.target.result;
+
+                if (currentUploadTarget === 'avatar') {
+                    // Update user Profile Picture directly
+                    let uData = JSON.parse(localStorage.getItem(`u_${currentUser}`));
+                    uData.avatar = selectedImageBase64;
+                    localStorage.setItem(`u_${currentUser}`, JSON.stringify(uData));
+                    updateUI();
+                    alert("تم تغيير الصورة الشخصية بنجاح!");
+                } else if (currentUploadTarget === 'post') {
+                    // Show Image preview in Camera screen
+                    document.getElementById('selected-image-tag').src = selectedImageBase64;
+                    document.getElementById('camera-image-preview').style.display = 'flex';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function publishSelectedPhoto() {
+        if (selectedImageBase64) {
+            // Update Feed with uploaded image
+            document.getElementById('feed-media-container').innerHTML = `<img src="${selectedImageBase64}" class="post-preview-img"/>`;
+            document.getElementById('feed-caption-display').innerText = "تم نشر صورة جديدة من المعرض! 📸";
+            
+            closeCameraPreview();
+            switchScreen('screen-feed');
+            alert("تم نشر الصورة بنجاح على حسابك!");
+        } else {
+            alert("يرجى اختيار صورة من المعرض أولاً!");
+        }
+    }
+
+    function closeCameraPreview() {
+        if (document.getElementById('camera-image-preview').style.display === 'flex') {
+            document.getElementById('camera-image-preview').style.display = 'none';
+            selectedImageBase64 = null;
+        } else {
+            switchScreen('screen-feed');
+        }
+    }
+
+    function switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        closeAllModals();
+    }
+
+    function openDrawer() {
+        document.getElementById('side-drawer').classList.add('open');
+        document.getElementById('backdrop').classList.add('open');
+    }
+
+    function openMusicSheet() {
+        document.getElementById('music-sheet').classList.add('open');
+        document.getElementById('backdrop').classList.add('open');
+    }
+
+    function openRechargeOffer() {
+        document.getElementById('recharge-modal').classList.add('open');
+        document.getElementById('backdrop').classList.add('open');
+    }
+
+    function selectSound(title) {
+        document.getElementById('selected-sound-name').innerText = title;
+        closeAllModals();
+    }
+
+    function closeAllModals() {
+        document.getElementById('side-drawer').classList.remove('open');
+        document.getElementById('music-sheet').classList.remove('open');
+        document.getElementById('recharge-modal').classList.remove('open');
+        document.getElementById('backdrop').classList.remove('open');
+    }
+
+    function changeUsernamePrompt() {
+        const name = prompt("أدخل اسمك الجديد:", currentUser);
+        if (name && name.trim()) {
+            initUser(name.trim());
+        }
+    }
+
+    function requestVerification() {
+        if (!requests.includes(currentUser)) {
+            requests.push(currentUser);
+            localStorage.setItem('rivo_app_reqs', JSON.stringify(requests));
+            alert("تم إرسال طلب التوثيق إلى المؤسس FARS!");
+        } else {
+            alert("طلبك بانتظار موافقة المؤسس FARS");
+        }
+    }
+
+    function renderAdminRequests() {
+        const box = document.getElementById('pending-list-box');
+        if (requests.length === 0) {
+            box.innerHTML = 'لا توجد طلبات معلقة حالياً';
+            return;
+        }
+        box.innerHTML = '';
+        requests.forEach(u => {
+            box.innerHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                    <span>${u}</span>
+                    <button onclick="approveVerify('${u}')" style="background:#00f2fe; border:none; padding:3px 8px; border-radius:4px; font-weight:bold; cursor:pointer;">توثيق</button>
+                </div>
+            `;
+        });
+    }
+
+    function approveVerify(user) {
+        let uData = JSON.parse(localStorage.getItem(`u_${user}`)) || { name: user, isFounder: false, isVerified: false, avatar: null };
+        uData.isVerified = true;
+        localStorage.setItem(`u_${user}`, JSON.stringify(uData));
+
+        requests = requests.filter(r => r !== user);
+        localStorage.setItem('rivo_app_reqs', JSON.stringify(requests));
+
+        alert(`تم توثيق ${user} بنجاح!`);
+        updateUI();
+    }
+
+    function logout() {
+        localStorage.removeItem('rivo_app_user');
+        initUser('FARS');
+        closeAllModals();
+    }
+
+    function toggleLike(btn) {
+        const icon = btn.querySelector('i');
+        icon.style.color = (icon.style.color === 'rgb(255, 0, 80)') ? '#fff' : '#ff0050';
+    }
+</script>
+</body>
+</html>
